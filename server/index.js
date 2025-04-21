@@ -55,81 +55,96 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       // Try to get duration using ffprobe (if available)
       const ffprobeCmd = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${req.file.path}"`;
       const durationOutput = execSync(ffprobeCmd).toString().trim();
-      durationSec = parseFloat(durationOutput);
-      if (isNaN(durationSec)) {
-        console.warn('[ffprobe] Could not parse duration, got:', durationOutput);
-        durationSec = 0;
-      }
     } catch (e) {
-      console.warn('[ffprobe] Failed to get duration, using async fallback:', e.message);
       durationSec = 0;
     }
     console.log(`[Transcription] Audio duration: ${durationSec}s`);
-    if (durationSec === 0 || durationSec > 60) {
-      console.log('[Transcription] Using async longRunningRecognize');
-      // Upload to GCS if long audio
-      const { Storage } = await import('@google-cloud/storage');
-      const storage = new Storage();
-      const bucketName = process.env.GCS_BUCKET_NAME || 'poopmtbucket';
-      const gcsFileName = `uploads/${Date.now()}-${req.file.filename}.webm`;
-      let gcsUri = `gs://${bucketName}/${gcsFileName}`;
-      try {
-        await storage.bucket(bucketName).upload(req.file.path, { destination: gcsFileName });
-        const [exists] = await storage.bucket(bucketName).file(gcsFileName).exists();
-        console.log(`[Transcription] Uploaded to GCS: ${gcsUri}`);
-        console.log(`[Transcription] File exists in GCS after upload: ${exists}`);
+    // Always upload to GCS for backup
+    const { Storage } = await import('@google-cloud/storage');
+    const storage = new Storage();
+    const bucketName = process.env.GCS_BUCKET_NAME || 'poopmtbucket';
+    const gcsFileName = `uploads/${Date.now()}-${req.file.filename}.webm`;
+    let gcsUri = `gs://${bucketName}/${gcsFileName}`;
+    try {
+      await storage.bucket(bucketName).upload(req.file.path, { destination: gcsFileName });
+      const [exists] = await storage.bucket(bucketName).file(gcsFileName).exists();
+      console.log(`[Transcription] Uploaded to GCS: ${gcsUri}`);
+      console.log(`[Transcription] File exists in GCS after upload: ${exists}`);
 
-        // Now run transcription
-        const longRequest = { audio: { uri: gcsUri }, config };
-        const [operation] = await speechClient.longRunningRecognize(longRequest);
-        const [longResponse] = await operation.promise();
-        response = longResponse;
-
-        // Optionally delete from GCS after transcription
-        // try { await storage.bucket(bucketName).file(gcsFileName).delete(); } catch(e) { console.warn('Could not delete GCS file:', e.message); }
-      } catch (gcsError) {
-        console.error('[Transcription] GCS upload or transcription failed:', gcsError);
-        console.error('[Transcription] Request details:', {
-          file: req.file,
-          bucketName,
-          gcsFileName
-        });
-        fs.unlinkSync(req.file.path);
-        console.error('[Transcription] About to return error:', { error: 'GCS upload or transcription failed', details: gcsError.message });
-        return res.status(500).json({ error: 'GCS upload or transcription failed', details: gcsError.message });
-      }
-    } else {
-      console.log('[Transcription] Using sync recognize');
-      const syncRequest = { audio, config };
-      [response] = await speechClient.recognize(syncRequest);
-    }
-    fs.unlinkSync(req.file.path); // Clean up uploaded file
-    const transcription = response.results?.map(r => r.alternatives[0].transcript).join('\n') || '';
-
-    // Call OpenAI GPT to refine the prompt
-    let refinedPrompt = '';
-    const modelKey = req.body.model || req.query.model || 'cursor';
-    const systemPrompt = SYSTEM_PROMPTS[modelKey] || SYSTEM_PROMPTS['cursor'];
-    if (transcription && process.env.OPENAI_API_KEY) {
-      const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Transcribe with OpenAI Whisper
+      const FormData = (await import('form-data')).default;
+      const fetch = (await import('node-fetch')).default;
+      const form = new FormData();
+      form.append('file', fs.createReadStream(req.file.path));
+      form.append('model', 'whisper-1');
+      // Optionally, add language or prompt here
+      const openaiRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          ...form.getHeaders(),
         },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt.replace('{RAW_PROMPT}', transcription) },
-            { role: 'user', content: transcription }
-          ]
-        })
+        body: form,
       });
-      const gptJson = await gptRes.json();
-      refinedPrompt = gptJson.choices?.[0]?.message?.content || '';
-    }
+      if (!openaiRes.ok) {
+        const errText = await openaiRes.text();
+        throw new Error(`OpenAI Whisper API error: ${errText}`);
+      }
+      const openaiData = await openaiRes.json();
+      const transcription = openaiData.text;
 
-    res.json({ transcription, refinedPrompt });
+      // Call OpenAI GPT to refine the prompt
+      let refinedPrompt = '';
+      const modelKey = req.body.model || req.query.model || 'cursor';
+      const systemPrompt = SYSTEM_PROMPTS[modelKey] || SYSTEM_PROMPTS['cursor'];
+      if (transcription) {
+        try {
+          const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: 'gpt-3.5-turbo',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: transcription },
+              ],
+              max_tokens: 256,
+              temperature: 0.4,
+            }),
+          });
+          const gptData = await gptResponse.json();
+          if (gptData.choices && gptData.choices[0]) {
+            refinedPrompt = gptData.choices[0].message.content;
+          }
+        } catch (gptError) {
+          console.error('[OpenAI GPT] Error:', gptError);
+        }
+      }
+      fs.unlinkSync(req.file.path); // Clean up uploaded file
+      res.json({ transcription, refinedPrompt });
+    } catch (error) {
+      console.error('Transcription error:', error);
+      console.error('[Transcription] Request body:', req.body);
+      console.error('[Transcription] Request file:', req.file);
+      if (error.response && error.response.data) {
+        const errJson = { error: error.message, apiError: error.response.data };
+        console.error('[Transcription] Sending error response:', errJson);
+        res.status(500).json(errJson);
+      } else if (error.details) {
+        const errJson = { error: error.message, details: error.details };
+        console.error('[Transcription] Sending error response:', errJson);
+        res.status(500).json(errJson);
+      } else {
+        const errJson = { error: error.message, stack: error.stack, raw: error };
+        console.error('[Transcription] Sending error response:', errJson);
+        res.status(500).json(errJson);
+      }
+      // Always clean up temp file on error
+      try { fs.unlinkSync(req.file.path); } catch(e) {}
+    }
   } catch (error) {
     console.error('Transcription error:', error);
     console.error('[Transcription] Request body:', req.body);
@@ -147,6 +162,8 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       console.error('[Transcription] Sending error response:', errJson);
       res.status(500).json(errJson);
     }
+    // Always clean up temp file on error
+    try { fs.unlinkSync(req.file.path); } catch(e) {}
   }
 });
 
