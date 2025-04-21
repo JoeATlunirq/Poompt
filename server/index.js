@@ -75,7 +75,10 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       const FormData = (await import('form-data')).default;
       const fetch = (await import('node-fetch')).default;
       const form = new FormData();
-      form.append('file', fs.createReadStream(req.file.path));
+      form.append('file', fs.createReadStream(req.file.path), {
+        filename: req.file.originalname || (req.file.filename + '.webm'),
+        contentType: req.file.mimetype || 'audio/webm'
+      });
       form.append('model', 'whisper-1');
       // Optionally, add language or prompt here
       const openaiRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
