@@ -37,13 +37,11 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
 
   return (
     <div className={cn(
-      "flex items-center justify-center space-x-3 font-mono px-4 py-3 rounded-xl shadow text-base md:text-2xl font-bold",
-      status === 'error'
-        ? "text-red-600 bg-red-100 dark:text-red-200 dark:bg-red-700"
-        : "text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800",
+      "flex items-center justify-center space-x-2 font-mono text-sm",
+      status === 'error' ? "text-red-600" : "text-gray-600",
       className
     )}>
-      <span className="animate-pulse-subtle text-xl md:text-2xl">{icon}</span>
+      <span className="animate-pulse-subtle text-lg">{icon}</span>
       <span>{displayText}</span>
     </div>
   );
