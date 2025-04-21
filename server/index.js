@@ -8,6 +8,15 @@ import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 dotenv.config();
 
+// --- GCLOUD_KEY_BASE64 support ---
+if (process.env.GCLOUD_KEY_BASE64 && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  const keyPath = '/tmp/gcloud-key.json';
+  const keyData = Buffer.from(process.env.GCLOUD_KEY_BASE64, 'base64').toString('utf8');
+  require('fs').writeFileSync(keyPath, keyData);
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath;
+  console.log('[GCloud] Wrote credentials to', keyPath);
+}
+
 const app = express();
 const port = process.env.PORT || 5005;
 const upload = multer({ dest: 'uploads/' });
