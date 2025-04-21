@@ -234,8 +234,8 @@ const handleMicToggle = async () => {
       {/* Countdown Overlay */}
       {showCountdown && (
         <div style={overlayStyle}>
-          <div style={{ marginBottom: '1.5rem', fontSize: '2.2rem', fontWeight: 400 }}>Get ready...</div>
-          <div style={{ fontSize: '4rem', fontWeight: 700, color: '#FFD700', textShadow: '2px 2px 8px #000' }}>{countdown}</div>
+          <div className="mb-6 font-mono text-2xl font-normal text-white">Get ready...</div>
+          <div className="font-mono text-6xl font-bold text-white tracking-tight" style={{letterSpacing: '-0.04em'}}>{countdown}</div>
         </div>
       )}
 
