@@ -86,7 +86,7 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
         response = longResponse;
 
         // Optionally delete from GCS after transcription
-        try { await storage.bucket(bucketName).file(gcsFileName).delete(); } catch(e) { console.warn('Could not delete GCS file:', e.message); }
+        // try { await storage.bucket(bucketName).file(gcsFileName).delete(); } catch(e) { console.warn('Could not delete GCS file:', e.message); }
       } catch (gcsError) {
         console.error('[Transcription] GCS upload or transcription failed:', gcsError);
         console.error('[Transcription] Request details:', {
