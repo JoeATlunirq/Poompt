@@ -64,7 +64,7 @@ const handleMicToggle = async () => {
         formData.append('audio', audioBlob, 'recording.webm');
         formData.append('model', selectedModel);
         try {
-          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5005';
+          const apiUrl = 'https://poompt.onrender.com';
           const response = await fetch(`${apiUrl}/api/transcribe`, {
             method: 'POST',
             body: formData,
