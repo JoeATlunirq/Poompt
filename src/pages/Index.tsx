@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import Header from '@/components/Header';
@@ -30,9 +31,12 @@ const Index = () => {
   const [progress, setProgress] = useState(0);
 
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  
   useEffect(() => {
-    document.body.classList.remove('dark', 'light');
-    document.body.classList.add(theme);
+    // Apply the theme to the HTML element instead of body
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
   }, [theme]);
 
   const handleMicToggle = () => {
@@ -127,7 +131,7 @@ The tool should help developers quickly identify issues and optimize their code 
   }, [status]);
 
   return (
-    <div className="grain min-h-screen flex flex-col items-center justify-between px-4 py-8 overflow-x-hidden">
+    <div className={`grain min-h-screen flex flex-col items-center justify-between px-4 py-8 overflow-x-hidden`}>
       <div className="fixed inset-0 overflow-hidden z-[-1]">
         {renderRandomElements()}
       </div>

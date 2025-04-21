@@ -96,6 +96,7 @@ export default {
 			fontFamily: {
 				'mono': ['Space Mono', 'monospace'],
 				'sans': ['Inter', 'sans-serif'],
+				'funky': ['Bungee Shade', 'cursive'],
 			}
 		}
 	},
