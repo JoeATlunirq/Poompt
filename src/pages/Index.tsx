@@ -25,16 +25,17 @@ const overlayStyle: React.CSSProperties = {
   left: 0,
   width: '100vw',
   height: '100vh',
-  background: 'rgba(0,0,0,0.7)',
+  background: '#000',
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
   zIndex: 9999,
-  color: 'white',
+  color: '#fff',
   fontSize: '2.5rem',
-  fontWeight: 'bold',
+  fontWeight: 600,
   letterSpacing: '1px',
+  border: 'none',
 };
 
 const Index = () => {
@@ -67,71 +68,61 @@ const Index = () => {
 
 const handleMicToggle = async () => {
   if (!isRecording) {
-    // Show countdown overlay
+    setIsRecording(true);
+    setStatus('listening');
+    setShowResults(false);
     setShowCountdown(true);
     setCountdown(5);
     let current = 5;
-    countdownRef.current && clearInterval(countdownRef.current);
-    countdownRef.current = setInterval(async () => {
-      current -= 1;
-      setCountdown(current);
-      if (current <= 0) {
-        clearInterval(countdownRef.current!);
-        setShowCountdown(false);
-        // Start recording after countdown
-        setIsRecording(true);
-        setStatus('listening');
-        setShowResults(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.onstop = async () => {
+        setStatus('processing');
+        setProgress(50);
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+        formData.append('model', selectedModel);
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          streamRef.current = stream;
-          const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-          audioChunksRef.current = [];
-          recorder.ondataavailable = (e) => {
-            if (e.data.size > 0) audioChunksRef.current.push(e.data);
-          };
-          recorder.onstop = async () => {
-            setStatus('processing');
-            setProgress(50);
-            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-            const formData = new FormData();
-            formData.append('audio', audioBlob, 'recording.webm');
-            formData.append('model', selectedModel);
-            try {
-              const apiUrl = 'https://poompt.onrender.com';
-              const response = await fetch(`${apiUrl}/api/transcribe`, {
-                method: 'POST',
-                body: formData,
-              });
-              const data = await response.json();
-              if (data.transcription) {
-                setRawText(data.transcription);
-                setRefinedPrompt(data.refinedPrompt || data.transcription);
-                setShowResults(true);
-                setStatus('complete');
-                setProgress(100);
-                toast({
-                  title: 'Prompt ready!',
-                  description: `Optimized for ${AI_MODELS.find(m => m.id === selectedModel)?.name}`,
-                });
-              } else {
-                setStatus('error');
-                toast({ title: 'Error', description: 'Transcription failed.' });
-              }
-            } catch (err) {
-              setStatus('error');
-              toast({ title: 'Error', description: 'Transcription failed.' });
-            }
-          };
-          mediaRecorderRef.current = recorder;
-          recorder.start();
+          const apiUrl = 'https://poompt.onrender.com';
+          const response = await fetch(`${apiUrl}/api/transcribe`, {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await response.json();
+          if (data.transcription) {
+            setRawText(data.transcription);
+            setRefinedPrompt(data.refinedPrompt || data.transcription);
+            setShowResults(true);
+            setStatus('complete');
+            setProgress(100);
+            toast({
+              title: 'Prompt ready!',
+              description: `Optimized for ${AI_MODELS.find(m => m.id === selectedModel)?.name}`,
+            });
+          } else {
+            setStatus('error');
+            toast({ title: 'Error', description: 'Transcription failed.' });
+          }
         } catch (err) {
           setStatus('error');
-          setIsRecording(false);
-          toast({ title: 'Error', description: 'Could not access microphone.' });
+          toast({ title: 'Error', description: 'Transcription failed.' });
         }
-      }
-    }, 1000);
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+    } catch (err) {
+      setStatus('error');
+      setIsRecording(false);
+      toast({ title: 'Error', description: 'Could not access microphone.' });
+      return;
+    }
   } else {
     // Stop recording
     setIsRecording(false);
@@ -139,6 +130,28 @@ const handleMicToggle = async () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
   }
 };
+
+  useEffect(() => {
+    if (showCountdown) {
+      setCountdown(5);
+      countdownRef.current && clearInterval(countdownRef.current);
+      let current = 5;
+      countdownRef.current = setInterval(() => {
+        current -= 1;
+        setCountdown(current);
+        if (current <= 0) {
+          clearInterval(countdownRef.current!);
+          setShowCountdown(false);
+        }
+      }, 1000);
+    } else {
+      countdownRef.current && clearInterval(countdownRef.current);
+    }
+    // Clean up on unmount
+    return () => {
+      countdownRef.current && clearInterval(countdownRef.current);
+    };
+  }, [showCountdown]);
 
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId);
