@@ -89,7 +89,13 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
         try { await storage.bucket(bucketName).file(gcsFileName).delete(); } catch(e) { console.warn('Could not delete GCS file:', e.message); }
       } catch (gcsError) {
         console.error('[Transcription] GCS upload or transcription failed:', gcsError);
+        console.error('[Transcription] Request details:', {
+          file: req.file,
+          bucketName,
+          gcsFileName
+        });
         fs.unlinkSync(req.file.path);
+        console.error('[Transcription] About to return error:', { error: 'GCS upload or transcription failed', details: gcsError.message });
         return res.status(500).json({ error: 'GCS upload or transcription failed', details: gcsError.message });
       }
     } else {
@@ -126,6 +132,8 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     res.json({ transcription, refinedPrompt });
   } catch (error) {
     console.error('Transcription error:', error);
+    console.error('[Transcription] Request body:', req.body);
+    console.error('[Transcription] Request file:', req.file);
     if (error.response && error.response.data) {
       const errJson = { error: error.message, apiError: error.response.data };
       console.error('[Transcription] Sending error response:', errJson);
