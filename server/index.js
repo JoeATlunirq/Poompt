@@ -109,13 +109,13 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
               'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
             },
             body: JSON.stringify({
-              model: 'gpt-3.5-turbo',
+              model: 'gpt-4o',
               messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: transcription },
               ],
-              max_tokens: 256,
-              temperature: 0.4,
+              max_tokens: 2048,
+              temperature: 0.7,
             }),
           });
           const gptData = await gptResponse.json();
