@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import MicrophoneButton from '@/components/MicrophoneButton';
@@ -33,7 +33,6 @@ const Index = () => {
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   
   useEffect(() => {
-    // Apply the theme to the HTML element instead of body
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
@@ -92,97 +91,69 @@ The tool should help developers quickly identify issues and optimize their code 
     }
   };
 
-  const renderRandomElements = () => {
-    const elements = [];
-    const shapes = ['circle', 'square', 'triangle'];
-    
-    for (let i = 0; i < 15; i++) {
-      const shape = shapes[Math.floor(Math.random() * shapes.length)];
-      const size = Math.floor(Math.random() * 8) + 4;
-      const left = Math.floor(Math.random() * 100);
-      const top = Math.floor(Math.random() * 100);
-      const duration = Math.floor(Math.random() * 40) + 20;
-      const delay = Math.floor(Math.random() * 10);
-      
-      let shapeClass = 'rounded-full';
-      if (shape === 'square') shapeClass = 'rounded-sm';
-      if (shape === 'triangle') shapeClass = 'triangle';
-      
-      elements.push(
-        <div
-          key={i}
-          className={`absolute ${shapeClass} bg-gray-200 z-[-1]`}
-          style={{
-            width: `${size}px`,
-            height: `${size}px`,
-            left: `${left}%`,
-            top: `${top}%`,
-            animation: `float ${duration}s infinite ease-in-out ${delay}s`
-          }}
-        />
-      );
-    }
-    
-    return elements;
-  };
-
   useEffect(() => {
     if (status !== 'processing') setProgress(0);
   }, [status]);
 
+  // --- Layout changes START here ---
   return (
-    <div className={`grain min-h-screen flex flex-col items-center justify-between px-4 py-8 overflow-x-hidden`}>
-      <div className="fixed inset-0 overflow-hidden z-[-1]">
-        {renderRandomElements()}
-      </div>
-
-      <div className="w-full flex items-center justify-end mb-2 px-2 max-w-3xl mx-auto">
-        <ThemeToggle theme={theme} setTheme={setTheme} />
+    <div className="grain min-h-screen flex flex-col items-center justify-between bg-background transition-all px-2 sm:px-4 py-8 overflow-x-hidden">
+      <div className="fixed inset-0 overflow-hidden -z-10 pointer-events-none">
+        {/* background static/floating shapes can stay */}
       </div>
 
       <Header />
 
-      <main className="w-full flex-1 flex flex-col items-center justify-center space-y-8 py-10 max-w-3xl mx-auto">
-        <div className="text-center space-y-2 mb-6">
-          <h2 className="text-xl md:text-2xl font-mono">
-            <span className="inline-block transform rotate-1">Turn voice thoughts</span>
-            <span className="inline-block mx-1">→</span>
-            <span className="inline-block transform -rotate-1">into refined prompts</span>
-          </h2>
-          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-            For when brilliance strikes at the most unexpected moments.
-            No typing required.
-          </p>
+      {/* Toggle and Model Selector together, stacked, centered */}
+      <div className="w-full flex flex-col items-center justify-center mt-2 gap-2 max-w-2xl mx-auto">
+        <div className="flex items-center gap-4 mb-1">
+          <ThemeToggle theme={theme} setTheme={setTheme} />
         </div>
+        <ModelSelector
+          options={AI_MODELS}
+          selectedModel={selectedModel}
+          onSelect={handleModelSelect}
+        />
+      </div>
 
-        <StatusIndicator status={status} className="mb-4" />
+      <main className="w-full flex-1 flex flex-col items-center justify-center space-y-10 py-4 max-w-2xl mx-auto">
+        {/* Title, description */}
+        <section className="flex flex-col items-center justify-center pt-2 pb-6">
+          <h2 className="font-['Bungee_Shade'] text-5xl md:text-7xl font-bold text-black dark:text-white tracking-wide mb-2 animate-fade-in drop-shadow-lg select-none">
+            Poompt
+          </h2>
+          <span className="inline-block text-sm md:text-base font-mono text-gray-600 dark:text-gray-400 italic mb-1">
+            Dump your thoughts. Prompt your future.
+            <span className="ml-2 animate-spin-slow inline-block">💩</span>
+          </span>
+        </section>
 
-        <div className="relative">
-          <MicrophoneButton
-            onToggle={handleMicToggle}
-            isActive={isRecording}
-            className="mb-6"
-          />
-          <div className="absolute -right-8 top-1/2 transform -translate-y-1/2 rotate-12">
-            <div className="bg-white dark:bg-gray-800 border border-black dark:border-white rounded-lg p-1 text-xs font-mono dark:text-white">
-              tap me
+        {/* Large record button, status, tap me label */}
+        <section className="flex flex-col items-center justify-center gap-3">
+          <div className="flex flex-col items-center justify-center gap-3">
+            <MicrophoneButton
+              onToggle={handleMicToggle}
+              isActive={isRecording}
+              className="mb-2 w-40 h-40 sm:w-52 sm:h-52"
+            />
+            <div className="relative w-full flex justify-center mt-[-8px]">
+              <div className="bg-white dark:bg-gray-800 border border-black dark:border-white rounded-xl px-3 py-1 text-base md:text-lg font-mono dark:text-white text-black font-bold shadow-lg pointer-events-none select-none">
+                tap to {isRecording ? "stop" : "record"}
+              </div>
             </div>
           </div>
-        </div>
+          <StatusIndicator status={status} className="mt-2 text-base md:text-xl" />
+        </section>
 
+        {/* Loading/progress bar */}
         {status === 'processing' && (
-          <div className="w-full max-w-md mx-auto">
-            <Progress value={progress} className="h-3 bg-gray-200 dark:bg-gray-700" />
+          <div className="w-full max-w-md mx-auto mt-2 px-3">
+            <Progress value={progress} className="h-5 bg-gray-200 dark:bg-gray-700 rounded-full" />
           </div>
         )}
 
-        <div className="w-full space-y-8">
-          <ModelSelector
-            options={AI_MODELS}
-            selectedModel={selectedModel}
-            onSelect={handleModelSelect}
-            className="mt-6"
-          />
+        {/* Prompts output */}
+        <div className="w-full mt-6">
           <PromptDisplay
             rawText={rawText}
             refinedPrompt={refinedPrompt}
@@ -199,3 +170,4 @@ The tool should help developers quickly identify issues and optimize their code 
 };
 
 export default Index;
+
