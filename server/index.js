@@ -72,19 +72,19 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       const storage = new Storage();
       const bucketName = process.env.GCS_BUCKET_NAME || 'poopmtbucket';
       const gcsFileName = `uploads/${Date.now()}-${req.file.filename}.webm`;
+      let gcsUri = `gs://${bucketName}/${gcsFileName}`;
       try {
         await storage.bucket(bucketName).upload(req.file.path, { destination: gcsFileName });
-        const gcsUri = `gs://${bucketName}/${gcsFileName}`;
-        console.log('[Transcription] Uploaded to GCS:', gcsUri);
-        // Confirm file exists
         const [exists] = await storage.bucket(bucketName).file(gcsFileName).exists();
-        if (!exists) {
-          throw new Error('File not found in GCS after upload');
-        }
+        console.log(`[Transcription] Uploaded to GCS: ${gcsUri}`);
+        console.log(`[Transcription] File exists in GCS after upload: ${exists}`);
+
+        // Now run transcription
         const longRequest = { audio: { uri: gcsUri }, config };
         const [operation] = await speechClient.longRunningRecognize(longRequest);
         const [longResponse] = await operation.promise();
         response = longResponse;
+
         // Optionally delete from GCS after transcription
         try { await storage.bucket(bucketName).file(gcsFileName).delete(); } catch(e) { console.warn('Could not delete GCS file:', e.message); }
       } catch (gcsError) {
