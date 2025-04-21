@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import Header from '@/components/Header';
@@ -7,12 +6,13 @@ import MicrophoneButton from '@/components/MicrophoneButton';
 import ModelSelector from '@/components/ModelSelector';
 import StatusIndicator from '@/components/StatusIndicator';
 import PromptDisplay from '@/components/PromptDisplay';
+import { Progress } from '@/components/ui/progress';
+import ThemeToggle from '@/components/ThemeToggle';
 
-// Mock models - in a real app these would be defined elsewhere
 const AI_MODELS = [
   { id: 'cursor', name: 'Cursor' },
   { id: 'windsurf', name: 'Windsurf' },
-  { id: 'claude', name: 'Claude' },
+  { id: 'v0', name: 'v0' },
   { id: 'lovable', name: 'Lovable' },
   { id: 'bolt', name: 'Bolt' },
 ];
@@ -26,31 +26,39 @@ const Index = () => {
   const [rawText, setRawText] = useState('');
   const [refinedPrompt, setRefinedPrompt] = useState('');
   const [showResults, setShowResults] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-  // Simulate recording functionality
-  const handleMicToggle = (isActive: boolean) => {
-    if (isActive) {
-      // Start recording
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  useEffect(() => {
+    document.body.classList.remove('dark', 'light');
+    document.body.classList.add(theme);
+  }, [theme]);
+
+  const handleMicToggle = () => {
+    if (!isRecording) {
+      setIsRecording(true);
       setStatus('listening');
       setShowResults(false);
-      
-      // Simulate recording for 3 seconds
       toast({
         title: "Recording started",
         description: "Capture your genius thoughts now!",
       });
-      
-      // After 3 seconds, simulate processing
+    } else {
+      setIsRecording(false);
+      setStatus('processing');
+      setProgress(0);
+      setRawText("Hey I was thinking we could create a tool that helps developers quickly debug code visually maybe something that shows memory allocation and call stacks in a nice graph");
+
+      let curr = 0;
+      const interval = setInterval(() => {
+        curr += 10;
+        setProgress(curr);
+        if (curr >= 100) clearInterval(interval);
+      }, 200);
+
       setTimeout(() => {
-        setStatus('processing');
-        
-        // Simulate raw text from voice recognition
-        setRawText("Hey I was thinking we could create a tool that helps developers quickly debug code visually maybe something that shows memory allocation and call stacks in a nice graph");
-        
-        // Simulate processing for 2 more seconds
-        setTimeout(() => {
-          // Generate refined prompt based on selected model
-          const refinedText = `Create a development tool that provides visual debugging capabilities for code, with the following features:
+        const refinedText = `Create a development tool that provides visual debugging capabilities for code, with the following features:
 1. Real-time memory allocation visualization
 2. Interactive call stack graphs
 3. Performance bottleneck identification
@@ -58,25 +66,15 @@ const Index = () => {
 5. Support for multiple programming languages
 
 The tool should help developers quickly identify issues and optimize their code through intuitive visual representations rather than traditional text-based debugging.`;
-          
-          setRefinedPrompt(refinedText);
-          setStatus('complete');
-          setShowResults(true);
-          
-          toast({
-            title: "Prompt ready!",
-            description: `Optimized for ${AI_MODELS.find(m => m.id === selectedModel)?.name}`,
-          });
-        }, 2000);
-      }, 3000);
-    } else {
-      // Stop recording
-      setStatus('idle');
-      toast({
-        title: "Recording stopped",
-        description: "Your thoughts weren't fully captured.",
-        variant: "destructive",
-      });
+        setRefinedPrompt(refinedText);
+        setStatus('complete');
+        setShowResults(true);
+
+        toast({
+          title: "Prompt ready!",
+          description: `Optimized for ${AI_MODELS.find(m => m.id === selectedModel)?.name}`,
+        });
+      }, 2000);
     }
   };
 
@@ -90,17 +88,16 @@ The tool should help developers quickly identify issues and optimize their code 
     }
   };
 
-  // Animated background elements
   const renderRandomElements = () => {
     const elements = [];
     const shapes = ['circle', 'square', 'triangle'];
     
     for (let i = 0; i < 15; i++) {
       const shape = shapes[Math.floor(Math.random() * shapes.length)];
-      const size = Math.floor(Math.random() * 8) + 4; // 4-12px
+      const size = Math.floor(Math.random() * 8) + 4;
       const left = Math.floor(Math.random() * 100);
       const top = Math.floor(Math.random() * 100);
-      const duration = Math.floor(Math.random() * 40) + 20; // 20-60s
+      const duration = Math.floor(Math.random() * 40) + 20;
       const delay = Math.floor(Math.random() * 10);
       
       let shapeClass = 'rounded-full';
@@ -125,20 +122,27 @@ The tool should help developers quickly identify issues and optimize their code 
     return elements;
   };
 
+  useEffect(() => {
+    if (status !== 'processing') setProgress(0);
+  }, [status]);
+
   return (
     <div className="grain min-h-screen flex flex-col items-center justify-between px-4 py-8 overflow-x-hidden">
-      {/* Background elements */}
       <div className="fixed inset-0 overflow-hidden z-[-1]">
         {renderRandomElements()}
       </div>
-      
+
+      <div className="w-full flex items-center justify-end mb-2 px-2 max-w-3xl mx-auto">
+        <ThemeToggle theme={theme} setTheme={setTheme} />
+      </div>
+
       <Header />
-      
+
       <main className="w-full flex-1 flex flex-col items-center justify-center space-y-8 py-10 max-w-3xl mx-auto">
         <div className="text-center space-y-2 mb-6">
           <h2 className="text-xl font-mono">
-            <span className="inline-block transform rotate-1">Turn voice thoughts</span> 
-            <span className="inline-block mx-1">→</span> 
+            <span className="inline-block transform rotate-1">Turn voice thoughts</span>
+            <span className="inline-block mx-1">→</span>
             <span className="inline-block transform -rotate-1">into refined prompts</span>
           </h2>
           <p className="text-sm text-gray-600 max-w-md mx-auto">
@@ -146,13 +150,14 @@ The tool should help developers quickly identify issues and optimize their code 
             No typing required.
           </p>
         </div>
-        
+
         <StatusIndicator status={status} className="mb-4" />
-        
+
         <div className="relative">
-          <MicrophoneButton 
-            onToggle={handleMicToggle} 
-            className="mb-6" 
+          <MicrophoneButton
+            onToggle={handleMicToggle}
+            isActive={isRecording}
+            className="mb-6"
           />
           <div className="absolute -right-8 top-1/2 transform -translate-y-1/2 rotate-12">
             <div className="bg-white border border-black rounded-lg p-1 text-xs font-mono">
@@ -160,24 +165,30 @@ The tool should help developers quickly identify issues and optimize their code 
             </div>
           </div>
         </div>
-        
+
+        {status === 'processing' && (
+          <div className="w-full max-w-md mx-auto">
+            <Progress value={progress} className="h-3 bg-gray-200" />
+          </div>
+        )}
+
         <div className="w-full space-y-8">
-          <ModelSelector 
-            options={AI_MODELS} 
-            selectedModel={selectedModel} 
-            onSelect={handleModelSelect} 
+          <ModelSelector
+            options={AI_MODELS}
+            selectedModel={selectedModel}
+            onSelect={handleModelSelect}
             className="mt-6"
           />
-          
-          <PromptDisplay 
-            rawText={rawText} 
-            refinedPrompt={refinedPrompt} 
-            isVisible={showResults} 
+          <PromptDisplay
+            rawText={rawText}
+            refinedPrompt={refinedPrompt}
+            isVisible={showResults}
             className="mt-8"
+            exportEnabled
           />
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );
