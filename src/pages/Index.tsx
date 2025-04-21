@@ -144,12 +144,12 @@ The tool should help developers quickly identify issues and optimize their code 
 
       <main className="w-full flex-1 flex flex-col items-center justify-center space-y-8 py-10 max-w-3xl mx-auto">
         <div className="text-center space-y-2 mb-6">
-          <h2 className="text-xl font-mono">
+          <h2 className="text-xl md:text-2xl font-mono">
             <span className="inline-block transform rotate-1">Turn voice thoughts</span>
             <span className="inline-block mx-1">→</span>
             <span className="inline-block transform -rotate-1">into refined prompts</span>
           </h2>
-          <p className="text-sm text-gray-600 max-w-md mx-auto">
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 max-w-md mx-auto">
             For when brilliance strikes at the most unexpected moments.
             No typing required.
           </p>
@@ -164,7 +164,7 @@ The tool should help developers quickly identify issues and optimize their code 
             className="mb-6"
           />
           <div className="absolute -right-8 top-1/2 transform -translate-y-1/2 rotate-12">
-            <div className="bg-white border border-black rounded-lg p-1 text-xs font-mono">
+            <div className="bg-white dark:bg-gray-800 border border-black dark:border-white rounded-lg p-1 text-xs font-mono dark:text-white">
               tap me
             </div>
           </div>
@@ -172,7 +172,7 @@ The tool should help developers quickly identify issues and optimize their code 
 
         {status === 'processing' && (
           <div className="w-full max-w-md mx-auto">
-            <Progress value={progress} className="h-3 bg-gray-200" />
+            <Progress value={progress} className="h-3 bg-gray-200 dark:bg-gray-700" />
           </div>
         )}
 
