@@ -6,6 +6,54 @@
 @tailwind utilities;
 
 @layer base {
+
+/* Extra animation utilities for progress bar and shimmer */
+@keyframes stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 60px 0;
+  }
+}
+.animate-stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0,0,0,0.06) 0px,
+    rgba(0,0,0,0.06) 12px,
+    transparent 12px,
+    transparent 24px
+  );
+  background-size: 60px 60px;
+  animation: stripes 1s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    opacity: 0.2;
+    transform: translateX(-100%);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 0.2;
+    transform: translateX(200%);
+  }
+}
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.7s ease-out;
+}
+
   :root {
     --background: 0 0% 100%;
     --foreground: 0 0% 10%;
